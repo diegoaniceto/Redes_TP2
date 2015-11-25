@@ -1,63 +1,64 @@
-//UDPClient.c
- 
 /*
- * gcc -o client UDPClient.c
- * ./client <server-ip>
- */
+    Simple udp client
+    Silver Moon (m00n.silv3r@gmail.com)
+*/
+#include<stdio.h> //printf
+#include<string.h> //memset
+#include<stdlib.h> //exit(0);
+#include<arpa/inet.h>
+#include<sys/socket.h>
  
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <stdlib.h> 
-#include <string.h>
-#define BUFLEN 512
-#define PORT 9930
+#define SERVER "::1"
+#define BUFLEN 512  //Max length of buffer
+#define PORT 8888   //The port on which to send data
  
-void err(char *s)
+void die(char *s)
 {
     perror(s);
     exit(1);
 }
  
-int main(int argc, char** argv)
+int main(void)
 {
-    struct sockaddr_in serv_addr;
-    int sockfd, i, slen=sizeof(serv_addr);
+    struct sockaddr_in6 si_other;
+    int s, i, slen=sizeof(si_other);
     char buf[BUFLEN];
+    char message[BUFLEN];
  
-    if(argc != 2)
+    if ( (s=socket(PF_INET6, SOCK_DGRAM, 0)) == -1)
     {
-      printf("Usage : %s <Server-IP>\n",argv[0]);
-      exit(0);
+        die("socket");
     }
  
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1)
-        err("socket");
- 
-    bzero(&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
-    if (inet_aton(argv[1], &serv_addr.sin_addr)==0)
+    memset((char *) &si_other, 0, sizeof(si_other));
+    si_other.sin6_family = AF_INET6;
+    si_other.sin6_port = htons(PORT);
+     
+    if (inet_pton(AF_INET6, SERVER , &si_other.sin6_addr) == 0) 
     {
         fprintf(stderr, "inet_aton() failed\n");
         exit(1);
     }
- 
-    while(1)
+    
+    strcpy(buf, "Mensagem de Teste pra fucionar saporra!");
+     
+    //send the message
+    if (sendto(s, buf, strlen(buf) , 0 , (struct sockaddr *) &si_other, slen) < 0)
     {
-        printf("\nEnter data to send(Type exit and press enter to exit) : ");
-        scanf("%[^\n]",buf);
-        getchar();
-        if(strcmp(buf,"exit") == 0)
-          exit(0);
- 
-        if (sendto(sockfd, buf, BUFLEN, 0, (struct sockaddr*)&serv_addr, slen)==-1)
-            err("sendto()");
+        die("sendto()");
     }
- 
-    close(sockfd);
+     
+    //receive a reply and print it
+    //clear the buffer by filling null, it might have previously received data
+    memset(buf,'\0', BUFLEN);
+    //try to receive some data, this is a blocking call
+    if (recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen) == -1)
+    {
+        die("recvfrom()");
+    }
+     
+    printf("%s\n", buf);
+
+    close(s);
     return 0;
 }
